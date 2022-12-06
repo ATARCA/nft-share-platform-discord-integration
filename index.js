@@ -19,10 +19,14 @@ const tokensQueryQGL = gql`
 
 const projectSpecificTokens = gql`
     query TokenQuery($project: String!) {
-        tokens(project: $project) {
+        tokens(orderBy: mintBlock, orderDirection: desc, where: {project: $project}) {
             tokenId
             isLikeToken
             metadataUri
+            mintBlock
+            project {
+                id
+            }
         }
     }
 `
@@ -33,7 +37,11 @@ async function testQuery() {
         fetch: fetch,
       })
       
-    const data = await client.query(tokensQueryQGL).toPromise()
+    const data = await client.query(projectSpecificTokens, {project: 'Streamr'}).toPromise()
+    
+    //filter out all tokens that are above the expected mintblock
+    //add lodash
+
     console.log(data?.data?.tokens)
 }
 
@@ -42,7 +50,7 @@ testQuery()
 
 // to be refactored as a periodically executed aws lambda function
 
-//check from cache what was the latest token if any
+//check from cache what was the latest token if any, what was the latest mintblock checked, check if any new tokens minted since then
 //consider aws dynamodb as a cache
 
 //check if there are new tokens for streamr project
