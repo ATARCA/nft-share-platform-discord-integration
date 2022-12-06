@@ -1,21 +1,14 @@
 // load libraries
 const AWS = require('aws-sdk')
 const { createClient, gql } = require('@urql/core')
-//const fetch = require('unfetch')
 const fetch = require('node-fetch')
-//import { createClient } from 'urql'
+const _ = require('lodash')
 
 const APIURL = 'https://api.thegraph.com/subgraphs/name/atarca/talko'
 
-const tokensQueryQGL = gql`
-    query {
-        tokens {
-            tokenId
-            isLikeToken
-            metadataUri
-        }
-    }
-`
+const TEMPORARY_BLOCK_LIMIT = 36448364
+//Todo: rename temporary block limit to something more representative, e.g. last block checked
+//Retrieve last block checked from database
 
 const projectSpecificTokens = gql`
     query TokenQuery($project: String!) {
@@ -39,10 +32,15 @@ async function testQuery() {
       
     const data = await client.query(projectSpecificTokens, {project: 'Streamr'}).toPromise()
     
-    //filter out all tokens that are above the expected mintblock
-    //add lodash
+    //filter out all tokens that are newer than the last checked mintblock
+    const newTokens = _.filter(data?.data?.tokens, function(o) {
+        return _.parseInt(o.mintBlock) > TEMPORARY_BLOCK_LIMIT
+    })
 
-    console.log(data?.data?.tokens)
+    console.log(newTokens)
+
+    //push new token information as message to discord bot
+    //update checked block limit with a new block number, last item on the list is the highest last check block 
 }
 
 testQuery()

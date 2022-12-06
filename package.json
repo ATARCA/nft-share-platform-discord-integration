@@ -5,8 +5,9 @@
   "license": "MIT",
   "dependencies": {
     "aws-sdk": "^2.1267.0",
+    "discord.js": "^14.7.1",
     "graphql": "^16.6.0",
-    "isomorphic-unfetch": "^3.1.0",
+    "lodash": "^4.17.21",
     "node-fetch": "2",
     "urql": "^3.0.3"
   }
