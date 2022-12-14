@@ -1,3 +1,5 @@
+const { update } = require('lodash');
+
 exports.handler = async (event, context) => {
     // load libraries
     require('dotenv').config();
@@ -11,7 +13,7 @@ exports.handler = async (event, context) => {
     const API_URL = process.env.API_URL
     const WEBHOOK_URL = process.env.WEBHOOK_URL
     const PROJECT = process.env.PROJECT
-    const TEMPORARY_BLOCK_LIMIT = 36448364
+    const TEMPORARY_BLOCK_LIMIT = process.env.TEMPORARY_BLOCK_LIMIT
     //Todo: rename temporary block limit to something more representative, e.g. last block checked
     //Retrieve last block checked from database
     
@@ -30,6 +32,17 @@ exports.handler = async (event, context) => {
     const params = {
         TableName: 'talko-discord-bot',
         Key: {"id":"production-blockheight"}
+    }
+
+    function updateParams(latestMintBlock){
+        return  {
+            TableName: 'talko-discord-bot',
+            Key: {"id":"production-blockheight"},
+            UpdateExpression: 'set blockheight = :v',
+            ExpressionAttributeValues: {
+                ':v': _.parseInt(latestMintBlock)
+            }
+        }
     }
 
     async function getItem() {
@@ -89,9 +102,8 @@ exports.handler = async (event, context) => {
         //if blockgheight not set, use default blockheight
         const item = await getItem()
         console.log('receivedblockheight from dynamodb', item?.blockheight)
-        //const blockheight = 'blockheight' in item ? item.blockheight : TEMPORARY_BLOCK_LIMIT;
-        const blockheight = 36448364
-        console.log('Blockheight: ', blockheight)
+        const blockheight = 'blockheight' in item ? item.blockheight : TEMPORARY_BLOCK_LIMIT;
+        console.log('Attempting to fetch tokens starting from Blockheight: ', blockheight)
         const graphQLClient = createClient({
             url: API_URL,
             fetch: fetch,
@@ -100,7 +112,7 @@ exports.handler = async (event, context) => {
         //Todo: update query to include blockheight as parameter
         const data = await graphQLClient.query(projectSpecificTokens, {project: PROJECT}).toPromise()
         
-        //find latest mintBlock
+        //find latest mintBlock 
 
         const latestMintBlockObject = _.maxBy(data?.data?.tokens, function(o){
             return _.parseInt(o.mintBlock)
@@ -120,7 +132,9 @@ exports.handler = async (event, context) => {
 
         console.log('New tokens',origOrShared)
         
+        
         //each discord update is done asynchronously, the order or updates is not guaranteed
+        //then update the params
         return Promise.all(_.map(origOrShared, async function(object) {
             //await parseAndPostToChannel(token)
             const talkoTokenURI = 'https://talkoapp.io/token/' + object?.contractAddress + '/' + object?.tokenId
@@ -165,7 +179,9 @@ exports.handler = async (event, context) => {
 
             })
         }))
-        
+        .then(
+            updateItem(updateParams(latestMintBlock))
+        )
     }
 
     await main()
