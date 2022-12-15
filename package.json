@@ -12,5 +12,11 @@
     "lodash": "^4.17.21",
     "node-fetch": "2",
     "urql": "^3.0.3"
-  }
+  },
+  "devDependencies": {
+    "esbuild": "^0.16.4"
+  },
+  "scripts": {
+    "build": "rm -rf dist && esbuild ./index.js --entry-names=[dir]/[name]/index --bundle --platform=node --target=node16.14 --outdir=dist"
+ }
 }
