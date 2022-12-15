@@ -2,39 +2,17 @@
 require('dotenv').config();
 const { update } = require('lodash');
 const AWS = require('aws-sdk')
-const { createClient, gql } = require('@urql/core')
+const { createClient } = require('@urql/core')
 const fetch = require('node-fetch')
 const _ = require('lodash')
+const {projectSpecificTokens, getMetadataObject, updateParams, getItem, updateItem} = require('./helpers')
 const {WebhookClient, EmbedBuilder} = require('discord.js')
-
-const projectSpecificTokens = gql`
-query TokenQuery($project: String!) {
-    tokens(orderBy: mintBlock, orderDirection: asc, where: {project: $project}) {
-        tokenId
-        contractAddress
-        isLikeToken
-        metadataUri
-        mintBlock
-        ownerAddress
-        isOriginal
-        isSharedInstance
-        parentTokenId
-        project {
-            id
-        }
-        category {
-            id
-        }
-    }
-}
-`
 
 exports.handler = async (event, context) => {
     const API_URL = process.env.API_URL
     const WEBHOOK_URL = process.env.WEBHOOK_URL
     const PROJECT = process.env.PROJECT
     const TEMPORARY_BLOCK_LIMIT = process.env.TEMPORARY_BLOCK_LIMIT
-    const TABLE_NAME = process.env.TABLE_NAME
     console.log("ENVIRONMENT VARIABLES\n" + JSON.stringify(process.env, null, 2))
 
     const webhookClient = new WebhookClient({url: WEBHOOK_URL})
@@ -46,56 +24,13 @@ exports.handler = async (event, context) => {
 
     AWS.config.update(aws_remote_config)
     const client = new AWS.DynamoDB.DocumentClient({apiVersion: '2012-08-10'})
-
-    const params = {
-        TableName: TABLE_NAME,
-        Key: {"id":"production-blockheight"}
-    }
-
-    function updateParams(latestMintBlock){
-        return  {
-            TableName: TABLE_NAME,
-            Key: {"id":"production-blockheight"},
-            UpdateExpression: 'set blockheight = :v',
-            ExpressionAttributeValues: {
-                ':v': _.parseInt(latestMintBlock)
-            }
-        }
-    }
-
-    async function getItem() {
-        try {
-            const data = await client.get(params).promise()
-            return data.Item
-        } catch (err) {
-            return err
-        }
-    }
-
-    async function updateItem(params) {
-        try {
-            const data = await client.update(params).promise()
-            console.log("Success", data)
-        } catch(err) {
-            console.log("Error", err)
-        }
-    }
-
-    async function getMetadataObject(metadataUri) {
-        try {
-            const response = await fetch(metadataUri)
-            return response
-        } catch(error) {
-            console.log('Failed to retrieve metadata from metadataurl', error)
-        } 
-    }
-
+    
     //Webhook initialization
     async function main() {
 
         //fetch blockheight from dynamodb
         //if blockgheight not set, use default blockheight
-        const item = await getItem()
+        const item = await getItem(client)
         console.log('receivedblockheight from dynamodb', item?.blockheight)
         const blockheight = 'blockheight' in item ? item.blockheight : TEMPORARY_BLOCK_LIMIT;
         console.log('Attempting to fetch tokens starting from Blockheight: ', blockheight)
@@ -172,7 +107,7 @@ exports.handler = async (event, context) => {
             })
         }))
         .then(
-            updateItem(updateParams(latestMintBlock))
+            updateItem(client, latestMintBlock)
         )
     }
 
