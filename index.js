@@ -160,7 +160,7 @@ exports.handler = async (event, context) => {
                     { name: 'Receiver', value: object?.ownerAddress },
                     { name: 'Token Type', value: tokenType },
                     { name: 'Mint block', value: object?.mintBlock },
-                    { name: 'Link', value: '[Talkoapp.io](https://talkoapp.io/)' }
+                    { name: 'Link', value: '[Talkoapp.io]('+talkoTokenURI+')' }
                 )
 
             return await webhookClient.send({
