@@ -1,23 +1,40 @@
+// load libraries    
+require('dotenv').config();
 const { update } = require('lodash');
+const AWS = require('aws-sdk')
+const { createClient, gql } = require('@urql/core')
+const fetch = require('node-fetch')
+const _ = require('lodash')
+const {WebhookClient, EmbedBuilder} = require('discord.js')
+
+const projectSpecificTokens = gql`
+query TokenQuery($project: String!) {
+    tokens(orderBy: mintBlock, orderDirection: asc, where: {project: $project}) {
+        tokenId
+        contractAddress
+        isLikeToken
+        metadataUri
+        mintBlock
+        ownerAddress
+        isOriginal
+        isSharedInstance
+        parentTokenId
+        project {
+            id
+        }
+        category {
+            id
+        }
+    }
+}
+`
 
 exports.handler = async (event, context) => {
-    // load libraries
-    require('dotenv').config();
-    //use AWS secrets once refactored as a lambda function
-    const AWS = require('aws-sdk')
-    const { createClient, gql } = require('@urql/core')
-    const fetch = require('node-fetch')
-    const _ = require('lodash')
-    const {WebhookClient, EmbedBuilder} = require('discord.js')
-
     const API_URL = process.env.API_URL
     const WEBHOOK_URL = process.env.WEBHOOK_URL
     const PROJECT = process.env.PROJECT
     const TEMPORARY_BLOCK_LIMIT = process.env.TEMPORARY_BLOCK_LIMIT
     const TABLE_NAME = process.env.TABLE_NAME
-    //Todo: rename temporary block limit to something more representative, e.g. last block checked
-    //Retrieve last block checked from database
-    
     console.log("ENVIRONMENT VARIABLES\n" + JSON.stringify(process.env, null, 2))
 
     const webhookClient = new WebhookClient({url: WEBHOOK_URL})
@@ -64,31 +81,8 @@ exports.handler = async (event, context) => {
         }
     }
 
-    const projectSpecificTokens = gql`
-        query TokenQuery($project: String!) {
-            tokens(orderBy: mintBlock, orderDirection: asc, where: {project: $project}) {
-                tokenId
-                contractAddress
-                isLikeToken
-                metadataUri
-                mintBlock
-                ownerAddress
-                isOriginal
-                isSharedInstance
-                parentTokenId
-                project {
-                    id
-                }
-                category {
-                    id
-                }
-            }
-        }
-    `
-
     async function getMetadataObject(metadataUri) {
         try {
-            //console.log('attempting to fetch url', metadataUri)
             const response = await fetch(metadataUri)
             return response
         } catch(error) {
@@ -131,13 +125,10 @@ exports.handler = async (event, context) => {
             return o.isOriginal || o.isSharedInstance
         })
 
-        console.log('New tokens',origOrShared)
+        console.log('New tokens found since last blockheight: ',origOrShared.length)
         
-        
-        //each discord update is done asynchronously, the order or updates is not guaranteed
-        //then update the params
+        //each discord update is done asynchronously
         return Promise.all(_.map(origOrShared, async function(object) {
-            //await parseAndPostToChannel(token)
             const talkoTokenURI = 'https://talkoapp.io/token/' + object?.contractAddress + '/' + object?.tokenId
             const metadataUri = object.metadataUri
             const metadataResponse = await getMetadataObject(metadataUri)
