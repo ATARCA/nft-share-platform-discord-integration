@@ -14,6 +14,7 @@ exports.handler = async (event, context) => {
     const WEBHOOK_URL = process.env.WEBHOOK_URL
     const PROJECT = process.env.PROJECT
     const TEMPORARY_BLOCK_LIMIT = process.env.TEMPORARY_BLOCK_LIMIT
+    const TABLE_NAME = process.env.TABLE_NAME
     //Todo: rename temporary block limit to something more representative, e.g. last block checked
     //Retrieve last block checked from database
     
@@ -30,13 +31,13 @@ exports.handler = async (event, context) => {
     const client = new AWS.DynamoDB.DocumentClient({apiVersion: '2012-08-10'})
 
     const params = {
-        TableName: 'talko-discord-bot',
+        TableName: TABLE_NAME,
         Key: {"id":"production-blockheight"}
     }
 
     function updateParams(latestMintBlock){
         return  {
-            TableName: 'talko-discord-bot',
+            TableName: TABLE_NAME,
             Key: {"id":"production-blockheight"},
             UpdateExpression: 'set blockheight = :v',
             ExpressionAttributeValues: {
