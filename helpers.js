@@ -65,7 +65,7 @@ async function getItem(client) {
 async function updateItem(client, latestMintBlock) {
     const updatedParams = updateParams(latestMintBlock)
     try {
-        const data = await client.update(params).promise()
+        const data = await client.update(updatedParams).promise()
         console.log("Success", data)
     } catch(err) {
         console.log("Error", err)
