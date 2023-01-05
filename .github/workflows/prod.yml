@@ -1,4 +1,4 @@
-name: Deploy to test Lambda
+name: Deploy to prod Lambda
 on:
   workflow_dispatch:
 jobs:
